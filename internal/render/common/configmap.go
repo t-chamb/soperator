@@ -568,14 +568,12 @@ func parseCGroupKV(line string) (string, bool) {
 func generateSpankConfig(cluster *values.SlurmCluster) renderutils.ConfigFile {
 	res := &renderutils.MultilineStringConfig{}
 
-	pluginDir := "/usr/lib/" + consts.Slurm
-
-	res.AddLine(fmt.Sprintf("required %s/chroot.so %s", pluginDir, consts.VolumeMountPathJail))
+	res.AddLine(fmt.Sprintf("required chroot.so %s", consts.VolumeMountPathJail))
 
 	res.AddLine(strings.Join(
 		[]string{
 			utils.Ternary(cluster.PlugStackConfig.Pyxis.Required != nil && *cluster.PlugStackConfig.Pyxis.Required, "required", "optional"),
-			pluginDir + "/spank_pyxis.so",
+			"spank_pyxis.so",
 			"runtime_path=/run/pyxis",
 			"execute_entrypoint=0",
 			"container_scope=global",
@@ -590,7 +588,7 @@ func generateSpankConfig(cluster *values.SlurmCluster) renderutils.ConfigFile {
 		res.AddLine(strings.Join(
 			[]string{
 				utils.Ternary(opts.Required, "required", "optional"),
-				pluginDir + "/spanknccldebug.so",
+				"spanknccldebug.so",
 				fmt.Sprintf("enabled=%d", utils.Ternary(opts.Enabled != nil && *opts.Enabled, 1, 0)),
 				fmt.Sprintf("log-level=%s", utils.Ternary(opts.LogLevel != "", opts.LogLevel, "INFO")),
 				fmt.Sprintf("out-file=%d", utils.Ternary(opts.OutputToFile, 1, 0)),
