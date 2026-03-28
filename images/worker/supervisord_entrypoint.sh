@@ -8,30 +8,29 @@ if [ -n "${CGROUP_V2}" ]; then
 
     if [ -n "${CGROUP_PATH}" ]; then
         echo "cgroup v2 detected, creating cgroup for ${CGROUP_PATH}"
-        mkdir -p /sys/fs/cgroup/"${CGROUP_PATH}"/../system.slice
-        echo "1" > /sys/fs/cgroup/${CGROUP_PATH}/../system.slice/memory.oom.group
+        mkdir -p /sys/fs/cgroup/"${CGROUP_PATH}"/../system.slice 2>/dev/null || echo "Warning: could not create system.slice cgroup (expected on K3s), continuing..."
+        echo "1" > /sys/fs/cgroup/${CGROUP_PATH}/../system.slice/memory.oom.group 2>/dev/null || true
     else
-        echo "cgroup v2 detected, but cgroup path is empty"
-        exit 1
+        echo "cgroup v2 detected, but cgroup path is empty, continuing..."
     fi
 fi
 
 echo "Link users from jail"
-ln -s /mnt/jail/etc/passwd /etc/passwd
-ln -s /mnt/jail/etc/group /etc/group
-ln -s /mnt/jail/etc/shadow /etc/shadow
-ln -s /mnt/jail/etc/gshadow /etc/gshadow
-chown -h 0:42 /etc/{shadow,gshadow}
+ln -sf /mnt/jail/etc/passwd /etc/passwd
+ln -sf /mnt/jail/etc/group /etc/group
+ln -sf /mnt/jail/etc/shadow /etc/shadow
+ln -sf /mnt/jail/etc/gshadow /etc/gshadow
+chown -h 0:42 /etc/{shadow,gshadow} 2>/dev/null || true
 
 echo "Link SSH \"message of the day\" scripts from jail"
-ln -s /mnt/jail/etc/update-motd.d /etc/update-motd.d
+ln -sf /mnt/jail/etc/update-motd.d /etc/update-motd.d
 
 echo "Link home from jail because slurmd uses it"
-ln -s /mnt/jail/home /home
+ln -sf /mnt/jail/home /home
 
 echo "Link soperator home directories from jail to use SSH keys from there"
 mkdir -p /mnt/jail/opt/soperator-home
-ln -s /mnt/jail/opt/soperator-home /opt/soperator-home
+ln -sf /mnt/jail/opt/soperator-home /opt/soperator-home
 
 echo "Symlink slurm configs from jail(sconfigcontroller)"
 rm -rf /etc/slurm && ln -s /mnt/jail/etc/slurm /etc/slurm
@@ -62,7 +61,7 @@ set_ulimit -HSv unlimited  # (-v) Max virtual memory size
 set_ulimit -HSx unlimited  # (-x) Max number of file locks
 
 echo "Apply sysctl limits from /etc/sysctl.conf"
-sysctl -p
+sysctl -p 2>/dev/null || true
 
 echo "Update linker cache"
 ldconfig

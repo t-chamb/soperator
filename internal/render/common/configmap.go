@@ -170,11 +170,10 @@ func AddNodesToSlurmConfig(res *renderutils.PropertiesConfig, cluster *values.Sl
 				nodeConfig = fmt.Sprintf("%s %s", nodeConfig, staticConfig)
 			}
 
-			// Create static nodes with state CLOUD.
-			// Otherwise, nodes will disappear from the Slurm state every time the corresponding K8s pods don't run.
+			// Create static nodes without CLOUD state for K3s/bare-metal compatibility.
 			res.AddProperty(
 				"NodeName",
-				fmt.Sprintf("%s State=CLOUD %s", nodeName, nodeConfig),
+				fmt.Sprintf("%s %s", nodeName, nodeConfig),
 			)
 		}
 	}
@@ -568,12 +567,17 @@ func parseCGroupKV(line string) (string, bool) {
 func generateSpankConfig(cluster *values.SlurmCluster) renderutils.ConfigFile {
 	res := &renderutils.MultilineStringConfig{}
 
-	res.AddLine(fmt.Sprintf("required chroot.so %s", consts.VolumeMountPathJail))
+	// Use absolute paths for SPANK plugins so dlopen finds them regardless
+	// of ld.so configuration. Use the actual installation path from the
+	// Slurm deb packages on Ubuntu/Debian-based images.
+	pluginDir := "/usr/lib/x86_64-linux-gnu/" + consts.Slurm
+
+	res.AddLine(fmt.Sprintf("optional %s/chroot.so %s", pluginDir, consts.VolumeMountPathJail))
 
 	res.AddLine(strings.Join(
 		[]string{
 			utils.Ternary(cluster.PlugStackConfig.Pyxis.Required != nil && *cluster.PlugStackConfig.Pyxis.Required, "required", "optional"),
-			"spank_pyxis.so",
+			fmt.Sprintf("%s/spank_pyxis.so", pluginDir),
 			"runtime_path=/run/pyxis",
 			"execute_entrypoint=0",
 			"container_scope=global",
@@ -588,7 +592,7 @@ func generateSpankConfig(cluster *values.SlurmCluster) renderutils.ConfigFile {
 		res.AddLine(strings.Join(
 			[]string{
 				utils.Ternary(opts.Required, "required", "optional"),
-				"spanknccldebug.so",
+				fmt.Sprintf("%s/spanknccldebug.so", pluginDir),
 				fmt.Sprintf("enabled=%d", utils.Ternary(opts.Enabled != nil && *opts.Enabled, 1, 0)),
 				fmt.Sprintf("log-level=%s", utils.Ternary(opts.LogLevel != "", opts.LogLevel, "INFO")),
 				fmt.Sprintf("out-file=%d", utils.Ternary(opts.OutputToFile, 1, 0)),
@@ -600,9 +604,13 @@ func generateSpankConfig(cluster *values.SlurmCluster) renderutils.ConfigFile {
 	}
 
 	for _, plugin := range cluster.PlugStackConfig.CustomPlugins {
+		pluginPath := plugin.Path
+		if !strings.HasPrefix(pluginPath, "/") {
+			pluginPath = pluginDir + "/" + pluginPath
+		}
 		conf := []string{
 			utils.Ternary(plugin.Required, "required", "optional"),
-			plugin.Path,
+			pluginPath,
 		}
 
 		if len(plugin.Arguments) > 0 {

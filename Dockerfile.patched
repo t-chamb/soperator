@@ -1,8 +1,2 @@
-FROM alpine:latest
-COPY soperator /usr/bin/slurm_operator
-RUN addgroup -S -g 1001 operator && \
-    adduser -S -u 1001 operator -G operator operator && \
-    chown 1001:1001 /usr/bin/slurm_operator && \
-    chmod 500 /usr/bin/slurm_operator
-USER 1001
-CMD ["/usr/bin/slurm_operator"]
+FROM ghcr.io/nebius/soperator/slurm-operator:3.0.2
+COPY manager-patched /usr/bin/slurm_operator

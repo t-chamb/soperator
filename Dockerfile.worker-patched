@@ -1,0 +1,3 @@
+FROM ghcr.io/nebius/soperator/worker_slurmd:3.0.2-slurm25.11.3
+COPY images/worker/supervisord_entrypoint.sh /opt/bin/slurm/supervisord_entrypoint.sh
+RUN chmod +x /opt/bin/slurm/supervisord_entrypoint.sh
